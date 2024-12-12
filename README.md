@@ -81,3 +81,7 @@ npm run dev
 ```
 
 4. Open http://localhost:5173 in your browser
+
+## Deployment
+
+Deployment link: https://calenderly.vercel.app/
