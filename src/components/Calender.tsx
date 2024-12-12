@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { Button } from './ui/button'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd'
 import FilterEvents from './FilterEvents'
 import SideDrawer from './SideDrawer'
 import { Event, DayEvents } from '../utils/types'
 import { getEventsForMonth, saveEvent, deleteEvent, updateEvent } from '../utils/eventStorage'
 import { getDaysInMonth, getFirstDayOfMonth } from '../utils/dateUtils'
+import { exportEvents, downloadFile } from '../utils/exportEvents'
 
 const eventColors = {
   work: 'bg-blue-500 text-white',
@@ -171,6 +172,14 @@ const Calendar: React.FC = () => {
     setEvents(updatedEvents)
   }
 
+  const handleExport = (format: 'json' | 'csv') => {
+    const allEvents = Object.values(events).flat()
+    const exportedContent = exportEvents(allEvents, format)
+    const fileName = `events_${currentDate.getFullYear()}_${currentDate.getMonth() + 1}.${format}`
+    const contentType = format === 'json' ? 'application/json' : 'text/csv'
+    downloadFile(exportedContent, fileName, contentType)
+  }
+
   return (
     <div className="space-y-6 p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
       <div className="flex justify-between items-center">
@@ -186,11 +195,23 @@ const Calendar: React.FC = () => {
           </Button>
         </div>
       </div>
-      <FilterEvents
-        setFilter={setFilter}
-        filteredEvents={filteredEvents}
-        onEventClick={handleFilteredEventClick}
-      />
+      <div className="flex justify-between items-center">
+        <FilterEvents
+          setFilter={setFilter}
+          filteredEvents={filteredEvents}
+          onEventClick={handleFilteredEventClick}
+        />
+        <div className="flex space-x-2">
+          <Button onClick={() => handleExport('json')} variant="outline" size="sm">
+            <Download className="h-4 w-4 mr-2" />
+            Export JSON
+          </Button>
+          <Button onClick={() => handleExport('csv')} variant="outline" size="sm">
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
+        </div>
+      </div>
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="grid grid-cols-7 gap-4">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
