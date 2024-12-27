@@ -15,6 +15,7 @@ interface SideDrawerProps {
   onEditEvent: (event: Event) => void;
   onDeleteEvent: (eventId: string) => void;
   onSaveEvent: (event: Event) => void;
+  existingEvents: Event[];
 }
 
 // Define color scheme for different event categories
@@ -35,6 +36,7 @@ const SideDrawer: React.FC<SideDrawerProps> = ({
   events,
   onDeleteEvent,
   onSaveEvent,
+  existingEvents,
 }) => {
   const [isEventModalOpen, setIsEventModalOpen] = React.useState(false);
   const [editingEvent, setEditingEvent] = React.useState<Event | null>(null);
@@ -118,6 +120,7 @@ const SideDrawer: React.FC<SideDrawerProps> = ({
           onDelete={onDeleteEvent}
           selectedDate={selectedDate || new Date()}
           editingEvent={editingEvent}
+          existingEvents={existingEvents}
         />
       </SheetContent>
     </Sheet>

@@ -70,7 +70,7 @@ const Calendar: React.FC = () => {
     setSelectedDate(clickedDate)
     setIsSideDrawerOpen(true)
   }
-  
+
   const checkEventOverlap = (event1: Event, event2: Event): boolean => {
     const start1 = new Date(event1.startTime);
     const end1 = new Date(event1.endTime);
@@ -317,6 +317,7 @@ const Calendar: React.FC = () => {
         onEditEvent={() => {}}
         onDeleteEvent={handleDeleteEvent}
         onSaveEvent={handleSaveEvent}
+        existingEvents={selectedDate ? events[selectedDate.toDateString()] || [] : []}
       />
     </div>
   )

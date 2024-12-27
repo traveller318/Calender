@@ -7,6 +7,8 @@ import { Label } from './ui/label';
 import { Event } from '../utils/types';
 import { Clock, CalendarIcon, Type, Tag } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { hasDuplicateEventName } from '../utils/eventStorage';
+import { checkTimeOverlap, convertTo24Hour } from '../utils/dateUtils';
 
 interface EventModalProps {
   isOpen: boolean;
@@ -15,6 +17,7 @@ interface EventModalProps {
   onDelete: (eventId: string) => void;
   selectedDate: Date;
   editingEvent: Event | null;
+  existingEvents: Event[];
 }
 
 const EventModal: React.FC<EventModalProps> = ({
@@ -24,6 +27,7 @@ const EventModal: React.FC<EventModalProps> = ({
   onDelete,
   selectedDate,
   editingEvent,
+  existingEvents,
 }) => {
   const [title, setTitle] = useState('');
   const [startTime, setStartTime] = useState('');
@@ -40,22 +44,10 @@ const EventModal: React.FC<EventModalProps> = ({
       const endDate = new Date(editingEvent.endTime);
       
       setTitle(editingEvent.title);
-      const startHours = startDate.getHours();
-      const startMinutes = startDate.getMinutes();
-      const endHours = endDate.getHours();
-      const endMinutes = endDate.getMinutes();
-
-      // Convert to 12-hour format
-      setStartTime(
-        `${(startHours % 12 || 12).toString().padStart(2, '0')}:${startMinutes.toString().padStart(2, '0')}`
-      );
-      setStartPeriod(startHours >= 12 ? 'PM' : 'AM');
-
-      setEndTime(
-        `${(endHours % 12 || 12).toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`
-      );
-      setEndPeriod(endHours >= 12 ? 'PM' : 'AM');
-
+      setStartTime(formatTimeForInput(startDate));
+      setStartPeriod(startDate.getHours() >= 12 ? 'PM' : 'AM');
+      setEndTime(formatTimeForInput(endDate));
+      setEndPeriod(endDate.getHours() >= 12 ? 'PM' : 'AM');
       setDescription(editingEvent.description || '');
       setCategory(editingEvent.category);
     } else {
@@ -70,17 +62,19 @@ const EventModal: React.FC<EventModalProps> = ({
     setError(null);
   }, [editingEvent, selectedDate]);
 
-  const convertTo24Hour = (time: string, period: string) => {
-    const [hours, minutes] = time.split(':').map(Number);
-    let hours24 = hours;
-    if (period === 'PM' && hours !== 12) hours24 += 12;
-    if (period === 'AM' && hours === 12) hours24 = 0;
-    return hours24 * 60 + minutes;
+  const formatTimeForInput = (date: Date): string => {
+    return date.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }).slice(0, 5);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Check for duplicate event names
+    if (hasDuplicateEventName(existingEvents, title, editingEvent?.id)) {
+      setError('An event with this name already exists on this day. Please choose a different name.');
+      return;
+    }
+
     // Convert times to minutes since midnight for comparison
     const startMinutes = convertTo24Hour(startTime, startPeriod);
     const endMinutes = convertTo24Hour(endTime, endPeriod);
@@ -91,8 +85,21 @@ const EventModal: React.FC<EventModalProps> = ({
       adjustedEndMinutes += 24 * 60; // Add 24 hours worth of minutes
     }
 
+    // Check for invalid time ranges
     if (adjustedEndMinutes <= startMinutes) {
       setError('End time must be after start time');
+      return;
+    }
+
+    // Check for very short events (less than 30 minutes)
+    if (adjustedEndMinutes - startMinutes < 30) {
+      setError('Events must be at least 30 minutes long');
+      return;
+    }
+
+    // Check for very long events (more than 24 hours)
+    if (adjustedEndMinutes - startMinutes > 24 * 60) {
+      setError('Events cannot be longer than 24 hours');
       return;
     }
 
@@ -121,6 +128,22 @@ const EventModal: React.FC<EventModalProps> = ({
       newEndTime.setDate(newEndTime.getDate() + 1);
     }
     newEndTime.setHours(adjustedEndHours, endMins);
+
+    // Check for overlapping events
+    const isOverlapping = existingEvents.some(existingEvent => {
+      if (editingEvent && existingEvent.id === editingEvent.id) return false;
+      return checkTimeOverlap(
+        convertTo24Hour(startTime, startPeriod),
+        convertTo24Hour(endTime, endPeriod),
+        convertTo24Hour(new Date(existingEvent.startTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }), ''),
+        convertTo24Hour(new Date(existingEvent.endTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }), '')
+      );
+    });
+
+    if (isOverlapping) {
+      setError('This event overlaps with an existing event. Please choose a different time.');
+      return;
+    }
 
     const event: Event = {
       id: editingEvent ? editingEvent.id : Date.now().toString(),
