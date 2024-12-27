@@ -68,29 +68,45 @@ const Calendar: React.FC = () => {
   }
 
   const convertTo24Hour = (date: Date): number => {
-    const hours = date.getHours();
+    let hours = date.getHours();
     const minutes = date.getMinutes();
-    return hours * 60 + minutes; // Convert to minutes since midnight
+    
+    // Convert to minutes since midnight
+    // This properly handles 12 AM (0 hours) and 12 PM (12 hours)
+    return (hours * 60) + minutes;
+  };
+  
+  const formatTimeForDisplay = (date: Date): string => {
+    let hours = date.getHours();
+    const minutes = date.getMinutes();
+    const period = hours >= 12 ? 'PM' : 'AM';
+    
+    // Convert to 12-hour format
+    hours = hours % 12;
+    hours = hours === 0 ? 12 : hours; // Handle midnight/noon
+    
+    return `${hours}:${minutes.toString().padStart(2, '0')} ${period}`;
   };
   
   const checkOverlap = (event1Start: Date, event1End: Date, event2Start: Date, event2End: Date) => {
-    const formatTime = (date: Date) => {
-      let hours = date.getHours();
-      const minutes = date.getMinutes();
-      const period = hours >= 12 ? 'PM' : 'AM';
-      hours = hours % 12 || 12;
-      return `${hours}:${minutes.toString().padStart(2, '0')} ${period}`;
-    };
+    // Get the dates for comparison
+    const date1 = event1Start.getDate();
+    const date2 = event2Start.getDate();
+    
+    // If events are on different days, they don't overlap
+    if (date1 !== date2) {
+      return false;
+    }
   
-    // Convert all times to minutes since midnight for comparison
+    // Convert all times to minutes since midnight
     const start1 = convertTo24Hour(event1Start);
     const end1 = convertTo24Hour(event1End);
     const start2 = convertTo24Hour(event2Start);
     const end2 = convertTo24Hour(event2End);
   
-    // Check if events overlap using minute-based comparison
+    // Check for overlap
     if (start1 < end2 && end1 > start2) {
-      const message = `Event overlaps with existing event from ${formatTime(event2Start)} to ${formatTime(event2End)}`;
+      const message = `Event overlaps with existing event from ${formatTimeForDisplay(event2Start)} to ${formatTimeForDisplay(event2End)}`;
       alert(message);
       return true;
     }
