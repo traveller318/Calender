@@ -115,3 +115,11 @@ export const convertTo24Hour = (time12h: string): string => {
   
   return `${hoursNumber.toString().padStart(2, '0')}:${minutes}`;
 }
+
+// Helper function to check for duplicate event names on the same day
+export const hasDuplicateEventName = (events: Event[], title: string, eventId?: string): boolean => {
+  return events.some(event => 
+    event.title.toLowerCase() === title.toLowerCase() && 
+    (!eventId || event.id !== eventId)
+  );
+};

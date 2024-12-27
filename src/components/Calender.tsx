@@ -71,7 +71,6 @@ const Calendar: React.FC = () => {
     setIsSideDrawerOpen(true)
   }
   
-
   const checkEventOverlap = (event1: Event, event2: Event): boolean => {
     const start1 = new Date(event1.startTime);
     const end1 = new Date(event1.endTime);
@@ -102,6 +101,17 @@ const Calendar: React.FC = () => {
 
     const existingEventIndex = updatedEvents[eventDate].findIndex(e => e.id === event.id);
     
+    // Check for duplicate event names
+    const isDuplicateName = updatedEvents[eventDate].some(e => 
+      e.title.toLowerCase() === event.title.toLowerCase() && 
+      (!event.id || e.id !== event.id)
+    );
+
+    if (isDuplicateName) {
+      alert('An event with this name already exists on this day. Please choose a different name.');
+      return;
+    }
+
     // Check for overlapping events, excluding the event being edited
     const hasOverlap = updatedEvents[eventDate].some((e) => {
       if (existingEventIndex !== -1 && e.id === event.id) return false;
@@ -313,4 +323,3 @@ const Calendar: React.FC = () => {
 }
 
 export default Calendar
-
