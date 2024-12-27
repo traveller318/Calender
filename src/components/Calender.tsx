@@ -177,13 +177,26 @@ const Calendar: React.FC = () => {
     const updatedEvents = { ...events };
     const [movedEvent] = updatedEvents[sourceDate].splice(eventIndex, 1);
   
-    // Calculate new start and end times
-    const newStartDate = new Date(destinationDate);
-    const oldStartDate = new Date(movedEvent.startTime);
-    const timeDiff = newStartDate.getTime() - oldStartDate.getTime();
+    // Parse the original start and end times
+    const originalStart = new Date(movedEvent.startTime);
+    const originalEnd = new Date(movedEvent.endTime);
   
-    const newStart = new Date(oldStartDate.getTime() + timeDiff);
-    const newEnd = new Date(new Date(movedEvent.endTime).getTime() + timeDiff);
+    // Set the new date while keeping the original time
+    const destinationDay = new Date(destinationDate);
+    const newStart = new Date(
+      destinationDay.getFullYear(),
+      destinationDay.getMonth(),
+      destinationDay.getDate(),
+      originalStart.getHours(),
+      originalStart.getMinutes()
+    );
+    const newEnd = new Date(
+      destinationDay.getFullYear(),
+      destinationDay.getMonth(),
+      destinationDay.getDate(),
+      originalEnd.getHours(),
+      originalEnd.getMinutes()
+    );
   
     // Check for overlap in the destination
     const hasOverlap = updatedEvents[destinationDate]?.some(e => {
@@ -212,6 +225,7 @@ const Calendar: React.FC = () => {
   
     setEvents(updatedEvents);
   };
+  
   
 
 
