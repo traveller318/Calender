@@ -67,44 +67,54 @@ const Calendar: React.FC = () => {
     setIsSideDrawerOpen(true)
   }
 
+  const checkOverlap = (event1Start: Date, event1End: Date, event2Start: Date, event2End: Date) => {
+    const formatTime = (date: Date) => {
+      let hours = date.getHours();
+      const minutes = date.getMinutes();
+      const period = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12 || 12;
+      return `${hours}:${minutes.toString().padStart(2, '0')} ${period}`;
+    };
+
+    if (event1Start < event2End && event1End > event2Start) {
+      const message = `Event overlaps with existing event from ${formatTime(event2Start)} to ${formatTime(event2End)}`;
+      alert(message);
+      return true;
+    }
+    return false;
+  };
+
+
   const handleSaveEvent = (event: Event) => {
     const updatedEvents = { ...events }
     const eventDate = new Date(event.startTime).toDateString()
     if (!updatedEvents[eventDate]) {
       updatedEvents[eventDate] = []
     }
-    const existingEventIndex = updatedEvents[eventDate].findIndex(e => e.id === event.id)
-    if (existingEventIndex !== -1) {
-      // Check for overlapping events when updating
-      const isOverlapping = updatedEvents[eventDate].some((e, index) => {
-        if (index === existingEventIndex) return false; // Skip the event being updated
-        const eStart = new Date(e.startTime).getTime()
-        const eEnd = new Date(e.endTime).getTime()
-        const newStart = new Date(event.startTime).getTime()
-        const newEnd = new Date(event.endTime).getTime()
-        return (newStart < eEnd && newEnd > eStart)
-      })
 
-      if (isOverlapping) {
-        alert('This event overlaps with an existing event. Please choose a different time.')
-        return
-      }
+    const newStart = new Date(event.startTime)
+    const newEnd = new Date(event.endTime)
+    const existingEventIndex = updatedEvents[eventDate].findIndex(e => e.id === event.id)
+
+    if (existingEventIndex !== -1) {
+      const hasOverlap = updatedEvents[eventDate].some((e, index) => {
+        if (index === existingEventIndex) return false;
+        const eStart = new Date(e.startTime)
+        const eEnd = new Date(e.endTime)
+        return checkOverlap(newStart, newEnd, eStart, eEnd)
+      });
+
+      if (hasOverlap) return;
       updatedEvents[eventDate][existingEventIndex] = event
       updateEvent(event.id, event)
     } else {
-      // Check for overlapping events when adding new event
-      const isOverlapping = updatedEvents[eventDate].some(e => {
-        const eStart = new Date(e.startTime).getTime()
-        const eEnd = new Date(e.endTime).getTime()
-        const newStart = new Date(event.startTime).getTime()
-        const newEnd = new Date(event.endTime).getTime()
-        return (newStart < eEnd && newEnd > eStart)
-      })
+      const hasOverlap = updatedEvents[eventDate].some(e => {
+        const eStart = new Date(e.startTime)
+        const eEnd = new Date(e.endTime)
+        return checkOverlap(newStart, newEnd, eStart, eEnd)
+      });
 
-      if (isOverlapping) {
-        alert('This event overlaps with an existing event. Please choose a different time.')
-        return
-      }
+      if (hasOverlap) return;
       updatedEvents[eventDate].push(event)
       saveEvent(event)
     }
@@ -138,7 +148,6 @@ const Calendar: React.FC = () => {
     const updatedEvents = { ...events }
     const [movedEvent] = updatedEvents[sourceDate].splice(eventIndex, 1)
 
-    // Update the event's date
     const newStartDate = new Date(destinationDate)
     const oldStartDate = new Date(movedEvent.startTime)
     const timeDiff = newStartDate.getTime() - oldStartDate.getTime()
@@ -146,16 +155,13 @@ const Calendar: React.FC = () => {
     const newStart = new Date(oldStartDate.getTime() + timeDiff)
     const newEnd = new Date(new Date(movedEvent.endTime).getTime() + timeDiff)
 
-    // Check for overlapping events in the destination date
-    const isOverlapping = updatedEvents[destinationDate]?.some(e => {
-      const eStart = new Date(e.startTime).getTime()
-      const eEnd = new Date(e.endTime).getTime()
-      return (newStart.getTime() < eEnd && newEnd.getTime() > eStart)
-    })
+    const hasOverlap = updatedEvents[destinationDate]?.some(e => {
+      const eStart = new Date(e.startTime)
+      const eEnd = new Date(e.endTime)
+      return checkOverlap(newStart, newEnd, eStart, eEnd)
+    });
 
-    if (isOverlapping) {
-      alert('This event overlaps with an existing event in the destination date. The event will not be moved.')
-      // Put the event back in its original position
+    if (hasOverlap) {
       updatedEvents[sourceDate].splice(eventIndex, 0, movedEvent)
     } else {
       movedEvent.startTime = newStart.toISOString()
@@ -165,12 +171,12 @@ const Calendar: React.FC = () => {
         updatedEvents[destinationDate] = []
       }
       updatedEvents[destinationDate].push(movedEvent)
-
       updateEvent(movedEvent.id, movedEvent)
     }
 
     setEvents(updatedEvents)
   }
+
 
   const handleExport = (format: 'json' | 'csv') => {
     const allEvents = Object.values(events).flat()

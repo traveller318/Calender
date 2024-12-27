@@ -25,44 +25,76 @@ const EventModal: React.FC<EventModalProps> = ({
   selectedDate,
   editingEvent,
 }) => {
-  // State for form fields
   const [title, setTitle] = useState('');
   const [startTime, setStartTime] = useState('');
+  const [startPeriod, setStartPeriod] = useState('AM');
   const [endTime, setEndTime] = useState('');
+  const [endPeriod, setEndPeriod] = useState('AM');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<Event['category']>('other');
   const [error, setError] = useState<string | null>(null);
 
-  // Effect to populate form fields when editing an event
   useEffect(() => {
     if (editingEvent) {
+      const startDate = new Date(editingEvent.startTime);
+      const endDate = new Date(editingEvent.endTime);
+      
       setTitle(editingEvent.title);
-      setStartTime(new Date(editingEvent.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-      setEndTime(new Date(editingEvent.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      setStartTime(formatTime12Hour(startDate).time);
+      setStartPeriod(formatTime12Hour(startDate).period);
+      setEndTime(formatTime12Hour(endDate).time);
+      setEndPeriod(formatTime12Hour(endDate).period);
       setDescription(editingEvent.description || '');
       setCategory(editingEvent.category);
     } else {
-      // Default values for new event
       setTitle('');
       setStartTime('09:00');
+      setStartPeriod('AM');
       setEndTime('10:00');
+      setEndPeriod('AM');
       setDescription('');
       setCategory('other');
     }
     setError(null);
   }, [editingEvent, selectedDate]);
 
-  // Handle form submission
+  const formatTime12Hour = (date: Date) => {
+    let hours = date.getHours();
+    const minutes = date.getMinutes();
+    const period = hours >= 12 ? 'PM' : 'AM';
+    
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    
+    return {
+      time: `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`,
+      period
+    };
+  };
+
+  const convertTo24Hour = (time: string, period: string) => {
+    let [hours, minutes] = time.split(':').map(Number);
+    
+    if (period === 'PM' && hours !== 12) {
+      hours += 12;
+    } else if (period === 'AM' && hours === 12) {
+      hours = 0;
+    }
+    
+    return { hours, minutes };
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const [startHours, startMinutes] = startTime.split(':').map(Number);
-    const[endHours, endMinutes] = endTime.split(':').map(Number);
+    
+    const startConverted = convertTo24Hour(startTime, startPeriod);
+    const endConverted = convertTo24Hour(endTime, endPeriod);
 
     const newStartTime = new Date(selectedDate);
-    newStartTime.setHours(startHours, startMinutes);
+    newStartTime.setHours(startConverted.hours, startConverted.minutes);
 
     const newEndTime = new Date(selectedDate);
-    newEndTime.setHours(endHours, endMinutes);
+    newEndTime.setHours(endConverted.hours, endConverted.minutes);
 
     if (newStartTime >= newEndTime) {
       setError('End time must be after start time');
@@ -107,26 +139,50 @@ const EventModal: React.FC<EventModalProps> = ({
                 <Clock className="w-4 h-4" />
                 Start Time
               </Label>
-              <Input
-                id="startTime"
-                type="time"
-                value={startTime}
-                onChange={e => setStartTime(e.target.value)}
-                required
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="startTime"
+                  type="time"
+                  value={startTime}
+                  onChange={e => setStartTime(e.target.value)}
+                  required
+                  className="flex-grow"
+                />
+                <Select value={startPeriod} onValueChange={setStartPeriod}>
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="AM">AM</SelectItem>
+                    <SelectItem value="PM">PM</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="endTime" className="flex items-center gap-2">
                 <Clock className="w-4 h-4" />
                 End Time
               </Label>
-              <Input
-                id="endTime"
-                type="time"
-                value={endTime}
-                onChange={e => setEndTime(e.target.value)}
-                required
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="endTime"
+                  type="time"
+                  value={endTime}
+                  onChange={e => setEndTime(e.target.value)}
+                  required
+                  className="flex-grow"
+                />
+                <Select value={endPeriod} onValueChange={setEndPeriod}>
+                  <SelectTrigger className="w-20">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="AM">AM</SelectItem>
+                    <SelectItem value="PM">PM</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
           <div className="space-y-2">
@@ -186,4 +242,3 @@ const EventModal: React.FC<EventModalProps> = ({
 };
 
 export default EventModal;
-
