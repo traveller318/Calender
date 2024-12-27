@@ -4,7 +4,6 @@ import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd'
 import FilterEvents from './FilterEvents'
 import SideDrawer from './SideDrawer'
-import EventModal from './EventModal';
 import { Event, DayEvents } from '../utils/types'
 import { getEventsForMonth, saveEvent, deleteEvent, updateEvent, hasDuplicateEventName } from '../utils/eventStorage'
 import { getDaysInMonth, getFirstDayOfMonth } from '../utils/dateUtils'
@@ -71,29 +70,6 @@ const Calendar: React.FC = () => {
     setSelectedDate(clickedDate)
     setIsSideDrawerOpen(true)
   }
-
-  const convertTo24Hour = (date: Date): number => {
-    let hours = date.getHours();
-    const minutes = date.getMinutes();
-    
-    // Convert to minutes since midnight
-    // This properly handles 12 AM (0 hours) and 12 PM (12 hours)
-    return (hours * 60) + minutes;
-  };
-  
-  const formatTimeForDisplay = (date: Date): string => {
-    let hours = date.getHours();
-    const minutes = date.getMinutes();
-    const period = hours >= 12 ? 'PM' : 'AM';
-    
-    // Convert to 12-hour format
-    hours = hours % 12;
-    hours = hours === 0 ? 12 : hours; // Handle midnight/noon
-    
-    return `${hours}:${minutes.toString().padStart(2, '0')} ${period}`;
-  };
-  
-
   const checkEventOverlap = (event1: Event, event2: Event): boolean => {
     const start1 = new Date(event1.startTime);
     const end1 = new Date(event1.endTime);
