@@ -70,6 +70,8 @@ const Calendar: React.FC = () => {
     setSelectedDate(clickedDate)
     setIsSideDrawerOpen(true)
   }
+
+
   const checkEventOverlap = (event1: Event, event2: Event): boolean => {
     const start1 = new Date(event1.startTime);
     const end1 = new Date(event1.endTime);
@@ -134,16 +136,40 @@ const Calendar: React.FC = () => {
   };
 
   const handleDeleteEvent = (eventId: string) => {
-    const updatedEvents = { ...events }
+    const updatedEvents = { ...events };
+    let deletedEvent: Event | null = null as Event | null;
+
     Object.keys(updatedEvents).forEach(date => {
-      updatedEvents[date] = updatedEvents[date].filter(event => event.id !== eventId)
-      if (updatedEvents[date].length === 0) {
-        delete updatedEvents[date]
+      const eventIndex = updatedEvents[date].findIndex(event => event.id === eventId);
+      if (eventIndex !== -1) {
+        deletedEvent = updatedEvents[date][eventIndex];
+        updatedEvents[date].splice(eventIndex, 1);
+        if (updatedEvents[date].length === 0) {
+          delete updatedEvents[date];
+        }
       }
-    })
-    setEvents(updatedEvents)
-    deleteEvent(eventId)
-  }
+    });
+
+    if (deletedEvent) {
+      const startDate = new Date(deletedEvent.startTime).toDateString();
+      const endDate = new Date(deletedEvent.endTime).toDateString();
+
+      // If the event spans midnight, ensure it's removed from both days
+      if (startDate !== endDate) {
+        [startDate, endDate].forEach(date => {
+          if (updatedEvents[date]) {
+            updatedEvents[date] = updatedEvents[date].filter(e => e.id !== eventId);
+            if (updatedEvents[date].length === 0) {
+              delete updatedEvents[date];
+            }
+          }
+        });
+      }
+    }
+
+    setEvents(updatedEvents);
+    deleteEvent(eventId);
+  };
 
   const handleFilteredEventClick = (event: Event) => {
     setSelectedDate(new Date(event.startTime))
@@ -158,7 +184,7 @@ const Calendar: React.FC = () => {
     const eventIndex = result.source.index;
 
     const updatedEvents = { ...events };
-    const [movedEvent] = updatedEvents[sourceDate].splice(eventIndex, 1);
+    const [movedEvent] = updatedEvents[sourceDate].splice(eventIndex, 1) as Event[];
 
     // Check for duplicate event names in the destination date
     const isDuplicateName = hasDuplicateEventName(updatedEvents[destinationDate] || [], movedEvent.title);
@@ -332,3 +358,4 @@ const Calendar: React.FC = () => {
 }
 
 export default Calendar
+
