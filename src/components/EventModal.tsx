@@ -40,10 +40,22 @@ const EventModal: React.FC<EventModalProps> = ({
       const endDate = new Date(editingEvent.endTime);
       
       setTitle(editingEvent.title);
-      setStartTime(formatTime12Hour(startDate).time);
-      setStartPeriod(formatTime12Hour(startDate).period);
-      setEndTime(formatTime12Hour(endDate).time);
-      setEndPeriod(formatTime12Hour(endDate).period);
+      const startHours = startDate.getHours();
+      const startMinutes = startDate.getMinutes();
+      const endHours = endDate.getHours();
+      const endMinutes = endDate.getMinutes();
+
+      // Convert to 12-hour format
+      setStartTime(
+        `${(startHours % 12 || 12).toString().padStart(2, '0')}:${startMinutes.toString().padStart(2, '0')}`
+      );
+      setStartPeriod(startHours >= 12 ? 'PM' : 'AM');
+
+      setEndTime(
+        `${(endHours % 12 || 12).toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`
+      );
+      setEndPeriod(endHours >= 12 ? 'PM' : 'AM');
+
       setDescription(editingEvent.description || '');
       setCategory(editingEvent.category);
     } else {
@@ -58,50 +70,57 @@ const EventModal: React.FC<EventModalProps> = ({
     setError(null);
   }, [editingEvent, selectedDate]);
 
-  const formatTime12Hour = (date: Date) => {
-    let hours = date.getHours();
-    const minutes = date.getMinutes();
-    const period = hours >= 12 ? 'PM' : 'AM';
-    
-    hours = hours % 12;
-    hours = hours ? hours : 12;
-    
-    return {
-      time: `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`,
-      period
-    };
-  };
-
   const convertTo24Hour = (time: string, period: string) => {
-    let [hours, minutes] = time.split(':').map(Number);
-
-    // Adjust for AM/PM
-    if (period === 'PM' && hours !== 12) {
-      hours += 12; // Convert PM hours to 24-hour format
-    } else if (period === 'AM' && hours === 12) {
-      hours = 0; // Convert 12 AM to 0 hours (midnight)
-    }
-
-    return { hours, minutes };
+    const [hours, minutes] = time.split(':').map(Number);
+    let hours24 = hours;
+    if (period === 'PM' && hours !== 12) hours24 += 12;
+    if (period === 'AM' && hours === 12) hours24 = 0;
+    return hours24 * 60 + minutes;
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const startConverted = convertTo24Hour(startTime, startPeriod);
-    const endConverted = convertTo24Hour(endTime, endPeriod);
+    // Convert times to minutes since midnight for comparison
+    const startMinutes = convertTo24Hour(startTime, startPeriod);
+    const endMinutes = convertTo24Hour(endTime, endPeriod);
 
-    const newStartTime = new Date(selectedDate);
-    newStartTime.setHours(startConverted.hours, startConverted.minutes);
+    // Handle next day scenarios
+    let adjustedEndMinutes = endMinutes;
+    if (endMinutes < startMinutes) {
+      adjustedEndMinutes += 24 * 60; // Add 24 hours worth of minutes
+    }
 
-    const newEndTime = new Date(selectedDate);
-    newEndTime.setHours(endConverted.hours, endConverted.minutes);
-
-    // Ensure start time is before end time
-    if (newStartTime >= newEndTime) {
+    if (adjustedEndMinutes <= startMinutes) {
       setError('End time must be after start time');
       return;
     }
+
+    const newStartTime = new Date(selectedDate);
+    const [startHours, startMins] = startTime.split(':').map(Number);
+    let adjustedStartHours = startHours;
+    if (startPeriod === 'PM' && startHours !== 12) {
+      adjustedStartHours += 12;
+    } else if (startPeriod === 'AM' && startHours === 12) {
+      adjustedStartHours = 0;
+    }
+    newStartTime.setHours(adjustedStartHours, startMins);
+
+    const newEndTime = new Date(selectedDate);
+    const [endHours, endMins] = endTime.split(':').map(Number);
+    let adjustedEndHours = endHours;
+    if (endPeriod === 'PM' && endHours !== 12) {
+      adjustedEndHours += 12;
+    } else if (endPeriod === 'AM' && endHours === 12) {
+      adjustedEndHours = 0;
+    }
+    
+    // If end time is earlier than start time, it's meant for the next day
+    if (adjustedEndHours < adjustedStartHours || 
+       (adjustedEndHours === adjustedStartHours && endMins < startMins)) {
+      newEndTime.setDate(newEndTime.getDate() + 1);
+    }
+    newEndTime.setHours(adjustedEndHours, endMins);
 
     const event: Event = {
       id: editingEvent ? editingEvent.id : Date.now().toString(),

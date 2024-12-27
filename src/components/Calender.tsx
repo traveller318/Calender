@@ -19,6 +19,10 @@ const eventColors = {
   finance: 'bg-yellow-400 text-black',
 }
 
+const checkTimeOverlap = (start1: number, end1: number, start2: number, end2: number): boolean => {
+  return start1 < end2 && end1 > start2;
+};
+
 const Calendar: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
@@ -66,89 +70,59 @@ const Calendar: React.FC = () => {
     setSelectedDate(clickedDate)
     setIsSideDrawerOpen(true)
   }
+  
 
-  const convertTo24Hour = (date: Date): number => {
-    let hours = date.getHours();
-    const minutes = date.getMinutes();
-    
-    // Convert to minutes since midnight
-    // This properly handles 12 AM (0 hours) and 12 PM (12 hours)
-    return (hours * 60) + minutes;
-  };
-  
-  const formatTimeForDisplay = (date: Date): string => {
-    let hours = date.getHours();
-    const minutes = date.getMinutes();
-    const period = hours >= 12 ? 'PM' : 'AM';
-    
-    // Convert to 12-hour format
-    hours = hours % 12;
-    hours = hours === 0 ? 12 : hours; // Handle midnight/noon
-    
-    return `${hours}:${minutes.toString().padStart(2, '0')} ${period}`;
-  };
-  
-  const checkOverlap = (event1Start: Date, event1End: Date, event2Start: Date, event2End: Date) => {
-    // Get the dates for comparison
-    const date1 = event1Start.getDate();
-    const date2 = event2Start.getDate();
-    
-    // If events are on different days, they don't overlap
-    if (date1 !== date2) {
-      return false;
-    }
-  
+  const checkEventOverlap = (event1: Event, event2: Event): boolean => {
+    const start1 = new Date(event1.startTime);
+    const end1 = new Date(event1.endTime);
+    const start2 = new Date(event2.startTime);
+    const end2 = new Date(event2.endTime);
+
     // Convert all times to minutes since midnight
-    const start1 = convertTo24Hour(event1Start);
-    const end1 = convertTo24Hour(event1End);
-    const start2 = convertTo24Hour(event2Start);
-    const end2 = convertTo24Hour(event2End);
-  
-    // Check for overlap
-    if (start1 < end2 && end1 > start2) {
-      const message = `Event overlaps with existing event from ${formatTimeForDisplay(event2Start)} to ${formatTimeForDisplay(event2End)}`;
-      alert(message);
-      return true;
-    }
-    
-    return false;
+    const start1Minutes = (start1.getHours() * 60) + start1.getMinutes();
+    const end1Minutes = (end1.getHours() * 60) + end1.getMinutes();
+    const start2Minutes = (start2.getHours() * 60) + start2.getMinutes();
+    const end2Minutes = (end2.getHours() * 60) + end2.getMinutes();
+
+    // Use the checkTimeOverlap utility function
+    return checkTimeOverlap(
+      start1Minutes,
+      end1Minutes,
+      start2Minutes,
+      end2Minutes
+    );
   };
 
   const handleSaveEvent = (event: Event) => {
-    const updatedEvents = { ...events }
-    const eventDate = new Date(event.startTime).toDateString()
+    const updatedEvents = { ...events };
+    const eventDate = new Date(event.startTime).toDateString();
     if (!updatedEvents[eventDate]) {
-      updatedEvents[eventDate] = []
+      updatedEvents[eventDate] = [];
     }
 
-    const newStart = new Date(event.startTime)
-    const newEnd = new Date(event.endTime)
-    const existingEventIndex = updatedEvents[eventDate].findIndex(e => e.id === event.id)
+    const existingEventIndex = updatedEvents[eventDate].findIndex(e => e.id === event.id);
+    
+    // Check for overlapping events, excluding the event being edited
+    const hasOverlap = updatedEvents[eventDate].some((e) => {
+      if (existingEventIndex !== -1 && e.id === event.id) return false;
+      return checkEventOverlap(event, e);
+    });
+
+    if (hasOverlap) {
+      alert('This event overlaps with an existing event. Please choose a different time.');
+      return;
+    }
 
     if (existingEventIndex !== -1) {
-      const hasOverlap = updatedEvents[eventDate].some((e, index) => {
-        if (index === existingEventIndex) return false;
-        const eStart = new Date(e.startTime)
-        const eEnd = new Date(e.endTime)
-        return checkOverlap(newStart, newEnd, eStart, eEnd)
-      });
-
-      if (hasOverlap) return;
-      updatedEvents[eventDate][existingEventIndex] = event
-      updateEvent(event.id, event)
+      updatedEvents[eventDate][existingEventIndex] = event;
+      updateEvent(event.id, event);
     } else {
-      const hasOverlap = updatedEvents[eventDate].some(e => {
-        const eStart = new Date(e.startTime)
-        const eEnd = new Date(e.endTime)
-        return checkOverlap(newStart, newEnd, eStart, eEnd)
-      });
-
-      if (hasOverlap) return;
-      updatedEvents[eventDate].push(event)
-      saveEvent(event)
+      updatedEvents[eventDate].push(event);
+      saveEvent(event);
     }
-    setEvents(updatedEvents)
-  }
+
+    setEvents(updatedEvents);
+  };
 
   const handleDeleteEvent = (eventId: string) => {
     const updatedEvents = { ...events }
@@ -168,64 +142,54 @@ const Calendar: React.FC = () => {
   }
 
   const onDragEnd = (result: DropResult) => {
-    if (!result.destination) return; // Do nothing if dropped outside a valid target
-  
+    if (!result.destination) return;
+
     const sourceDate = result.source.droppableId;
     const destinationDate = result.destination.droppableId;
     const eventIndex = result.source.index;
-  
+
     const updatedEvents = { ...events };
     const [movedEvent] = updatedEvents[sourceDate].splice(eventIndex, 1);
-  
-    // Parse the original start and end times
-    const originalStart = new Date(movedEvent.startTime);
-    const originalEnd = new Date(movedEvent.endTime);
-  
-    // Set the new date while keeping the original time
-    const destinationDay = new Date(destinationDate);
-    const newStart = new Date(
-      destinationDay.getFullYear(),
-      destinationDay.getMonth(),
-      destinationDay.getDate(),
-      originalStart.getHours(),
-      originalStart.getMinutes()
+
+    // Create new dates while preserving the time
+    const oldStartDate = new Date(movedEvent.startTime);
+    const oldEndDate = new Date(movedEvent.endTime);
+    const newStartDate = new Date(destinationDate);
+    const newEndDate = new Date(destinationDate);
+
+    // Set hours and minutes from the original event
+    newStartDate.setHours(oldStartDate.getHours(), oldStartDate.getMinutes());
+    newEndDate.setHours(oldEndDate.getHours(), oldEndDate.getMinutes());
+
+    // If end time is before start time, it means it ends the next day
+    if (oldEndDate.getTime() < oldStartDate.getTime()) {
+      newEndDate.setDate(newEndDate.getDate() + 1);
+    }
+
+    const updatedEvent = {
+      ...movedEvent,
+      startTime: newStartDate.toISOString(),
+      endTime: newEndDate.toISOString(),
+    };
+
+    // Check for overlapping events in the destination date
+    const hasOverlap = updatedEvents[destinationDate]?.some(existingEvent => 
+      checkEventOverlap(updatedEvent, existingEvent)
     );
-    const newEnd = new Date(
-      destinationDay.getFullYear(),
-      destinationDay.getMonth(),
-      destinationDay.getDate(),
-      originalEnd.getHours(),
-      originalEnd.getMinutes()
-    );
-  
-    // Check for overlap in the destination
-    const hasOverlap = updatedEvents[destinationDate]?.some(e => {
-      const eStart = new Date(e.startTime);
-      const eEnd = new Date(e.endTime);
-      return checkOverlap(newStart, newEnd, eStart, eEnd);
-    });
-  
+
     if (hasOverlap) {
-      // Revert the event back to the source date if there's an overlap
+      alert('This event overlaps with an existing event in the destination date. The event will not be moved.');
       updatedEvents[sourceDate].splice(eventIndex, 0, movedEvent);
-      alert("This event conflicts with an existing event.");
     } else {
-      // Update event's time and move to destination
-      movedEvent.startTime = newStart.toISOString();
-      movedEvent.endTime = newEnd.toISOString();
-  
       if (!updatedEvents[destinationDate]) {
         updatedEvents[destinationDate] = [];
       }
-      updatedEvents[destinationDate].push(movedEvent);
-  
-      // Update the database
-      updateEvent(movedEvent.id, movedEvent);
+      updatedEvents[destinationDate].push(updatedEvent);
+      updateEvent(updatedEvent.id, updatedEvent);
     }
-  
+
     setEvents(updatedEvents);
   };
-  
   
 
 
