@@ -74,13 +74,14 @@ const EventModal: React.FC<EventModalProps> = ({
 
   const convertTo24Hour = (time: string, period: string) => {
     let [hours, minutes] = time.split(':').map(Number);
-    
+
+    // Adjust for AM/PM
     if (period === 'PM' && hours !== 12) {
-      hours += 12;
+      hours += 12; // Convert PM hours to 24-hour format
     } else if (period === 'AM' && hours === 12) {
-      hours = 0;
+      hours = 0; // Convert 12 AM to 0 hours (midnight)
     }
-    
+
     return { hours, minutes };
   };
 
@@ -96,6 +97,7 @@ const EventModal: React.FC<EventModalProps> = ({
     const newEndTime = new Date(selectedDate);
     newEndTime.setHours(endConverted.hours, endConverted.minutes);
 
+    // Ensure start time is before end time
     if (newStartTime >= newEndTime) {
       setError('End time must be after start time');
       return;
