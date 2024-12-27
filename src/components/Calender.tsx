@@ -67,6 +67,12 @@ const Calendar: React.FC = () => {
     setIsSideDrawerOpen(true)
   }
 
+  const convertTo24Hour = (date: Date): number => {
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    return hours * 60 + minutes; // Convert to minutes since midnight
+  };
+  
   const checkOverlap = (event1Start: Date, event1End: Date, event2Start: Date, event2End: Date) => {
     const formatTime = (date: Date) => {
       let hours = date.getHours();
@@ -75,15 +81,22 @@ const Calendar: React.FC = () => {
       hours = hours % 12 || 12;
       return `${hours}:${minutes.toString().padStart(2, '0')} ${period}`;
     };
-
-    if (event1Start < event2End && event1End > event2Start) {
+  
+    // Convert all times to minutes since midnight for comparison
+    const start1 = convertTo24Hour(event1Start);
+    const end1 = convertTo24Hour(event1End);
+    const start2 = convertTo24Hour(event2Start);
+    const end2 = convertTo24Hour(event2End);
+  
+    // Check if events overlap using minute-based comparison
+    if (start1 < end2 && end1 > start2) {
       const message = `Event overlaps with existing event from ${formatTime(event2Start)} to ${formatTime(event2End)}`;
       alert(message);
       return true;
     }
+    
     return false;
   };
-
 
   const handleSaveEvent = (event: Event) => {
     const updatedEvents = { ...events }
