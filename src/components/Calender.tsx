@@ -168,43 +168,51 @@ const Calendar: React.FC = () => {
   }
 
   const onDragEnd = (result: DropResult) => {
-    if (!result.destination) return
-
-    const sourceDate = result.source.droppableId
-    const destinationDate = result.destination.droppableId
-    const eventIndex = result.source.index
-
-    const updatedEvents = { ...events }
-    const [movedEvent] = updatedEvents[sourceDate].splice(eventIndex, 1)
-
-    const newStartDate = new Date(destinationDate)
-    const oldStartDate = new Date(movedEvent.startTime)
-    const timeDiff = newStartDate.getTime() - oldStartDate.getTime()
-
-    const newStart = new Date(oldStartDate.getTime() + timeDiff)
-    const newEnd = new Date(new Date(movedEvent.endTime).getTime() + timeDiff)
-
+    if (!result.destination) return; // Do nothing if dropped outside a valid target
+  
+    const sourceDate = result.source.droppableId;
+    const destinationDate = result.destination.droppableId;
+    const eventIndex = result.source.index;
+  
+    const updatedEvents = { ...events };
+    const [movedEvent] = updatedEvents[sourceDate].splice(eventIndex, 1);
+  
+    // Calculate new start and end times
+    const newStartDate = new Date(destinationDate);
+    const oldStartDate = new Date(movedEvent.startTime);
+    const timeDiff = newStartDate.getTime() - oldStartDate.getTime();
+  
+    const newStart = new Date(oldStartDate.getTime() + timeDiff);
+    const newEnd = new Date(new Date(movedEvent.endTime).getTime() + timeDiff);
+  
+    // Check for overlap in the destination
     const hasOverlap = updatedEvents[destinationDate]?.some(e => {
-      const eStart = new Date(e.startTime)
-      const eEnd = new Date(e.endTime)
-      return checkOverlap(newStart, newEnd, eStart, eEnd)
+      const eStart = new Date(e.startTime);
+      const eEnd = new Date(e.endTime);
+      return checkOverlap(newStart, newEnd, eStart, eEnd);
     });
-
+  
     if (hasOverlap) {
-      updatedEvents[sourceDate].splice(eventIndex, 0, movedEvent)
+      // Revert the event back to the source date if there's an overlap
+      updatedEvents[sourceDate].splice(eventIndex, 0, movedEvent);
+      alert("This event conflicts with an existing event.");
     } else {
-      movedEvent.startTime = newStart.toISOString()
-      movedEvent.endTime = newEnd.toISOString()
-
+      // Update event's time and move to destination
+      movedEvent.startTime = newStart.toISOString();
+      movedEvent.endTime = newEnd.toISOString();
+  
       if (!updatedEvents[destinationDate]) {
-        updatedEvents[destinationDate] = []
+        updatedEvents[destinationDate] = [];
       }
-      updatedEvents[destinationDate].push(movedEvent)
-      updateEvent(movedEvent.id, movedEvent)
+      updatedEvents[destinationDate].push(movedEvent);
+  
+      // Update the database
+      updateEvent(movedEvent.id, movedEvent);
     }
-
-    setEvents(updatedEvents)
-  }
+  
+    setEvents(updatedEvents);
+  };
+  
 
 
   const handleExport = (format: 'json' | 'csv') => {
